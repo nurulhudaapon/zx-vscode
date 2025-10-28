@@ -48,13 +48,6 @@
           "meta.tag.attributes.zigx": "zigx",
           "meta.embedded.expression.zigx": "zigx"
         }
-      },
-      {
-        "scopeName": "zigx.injection",
-        "path": "./syntaxes/zigx-injection.tmLanguage.json",
-        "injectTo": [
-          "source.zig"
-        ]
       }
     ]
   }
