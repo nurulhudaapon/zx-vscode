@@ -1,5 +1,5 @@
-import { test, expect, describe } from "bun:test";
-import { formatZx, preCompileZigFmt } from "../src/fmt";
+import { test, expect, describe, afterAll } from "bun:test";
+import { formatZx, fmtStats, preCompileZigFmt } from "../src/fmt";
 import { fmtCases } from "./data.test";
 import Bun from "bun";
 
@@ -29,7 +29,14 @@ describe("fmt", () => {
         });
 
     }
+
     cancellationTokenSource.cancel();
+},
+);
+
+afterAll(() => {
+    console.debug(fmtStats.getStats());
+    fmtStats.clear();
 });
 
 

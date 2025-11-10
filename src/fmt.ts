@@ -41,6 +41,7 @@ const htmlFormatConfig: HTMLFormatConfiguration = {
        |
        v
 [Output Document]
+**/
 
 /**
  * Main entry point for formatting ZX code.
@@ -52,6 +53,8 @@ export async function formatZx(
   originalUri: string,
   virtualHtmlDocumentContents: Map<string, string>,
 ): Promise<string> {
+  fmtStats.increment("fmt");
+
   // Step 1: Extract HTML and get prepared Zig code
   const htmlExtractedDoc = extractHtmls(documentText);
 
@@ -101,6 +104,7 @@ export async function formatHtml(
   originalUri: string,
   virtualHtmlDocumentContents: Map<string, string>,
 ): Promise<string> {
+  
   // Read configuration: formatting of embedded Zig expressions (and inner HTML)
   // is opt-in via `zx.format.enableZigExpression`. Default is false (disabled)
   // to avoid triggering known formatting bugs. When false, we preserve embedded
@@ -113,9 +117,14 @@ export async function formatHtml(
   // For each zig segment, we need to format it. Zig segments themselves may contain HTML, so
   // we must run prepareFmtDoc on each segment and format inner html, then format the zig.
   const formattedZigExpressions = new Map<string, string>();
-
-  const queueId = Math.random().toString(36).substring(2, 15);
   
+  // Collect all prepared documents and their inner formatted HTML maps
+  const preparedDocuments: Array<{
+    zigKey: string;
+    preparedText: string;
+    innerFormattedHtml: Map<string, string>;
+  }> = [];
+
   for (const [zigKey, zigText] of zigExpressions.exprss.entries()) {
     if (!enableZigExpression) {
       // If formatting of embedded Zig expressions is not enabled, keep the
@@ -153,13 +162,27 @@ export async function formatHtml(
       innerFormattedHtml.set(innerKey, innerFormatted);
     }
 
-    // Now format the zig prepared text (with @html placeholders) via ZLS or CLI
-    const formattedPreparedZig = await formatZigExprs(
-      innerPrepared.preparedDocumentText,
-      token,
-    );
+    // Collect prepared document for batch formatting
+    preparedDocuments.push({
+      zigKey,
+      preparedText: innerPrepared.preparedDocumentText,
+      innerFormattedHtml,
+    });
+  }
 
-    // Put back inner formatted HTML into the formatted zig text
+  // Format all zig expressions at once
+  const formattedPreparedZigArray = preparedDocuments.length > 0
+    ? await formatZigExprsBatch(
+        preparedDocuments.map(doc => doc.preparedText),
+        token,
+      )
+    : [];
+
+  // Put back inner formatted HTML into the formatted zig text for each expression
+  for (let i = 0; i < preparedDocuments.length; i++) {
+    const { zigKey, innerFormattedHtml } = preparedDocuments[i];
+    const formattedPreparedZig = formattedPreparedZigArray[i];
+
     const formattedZigWithHtml = patchInFormattedHtml(
       formattedPreparedZig,
       innerFormattedHtml,
@@ -184,13 +207,14 @@ export async function formatHtml(
     htmlWithZigPlaceholders,
   );
 
+  const timestamp = Date.now();
   const htmlTextEdits = htmlLanguageService.format(
     virtualHtmlDoc,
     undefined,
     htmlFormatConfig,
   );
-
   let formattedHtml = TextDocument.applyEdits(virtualHtmlDoc, htmlTextEdits);
+  fmtStats.increment("html", Date.now() - timestamp);
 
   // There may be remaining raw <zig:N /> placeholders if any; ensure formattedZigSegments are reinserted
   // When replacing, preserve the indentation of the placeholder line
@@ -1256,29 +1280,62 @@ function removeSemicolonsFromCompleteExpressions(text: string): string {
 }
 
 /**
- * Formats a prepared Zig text segment (which may still contain @html(...) placeholders).
- * Tries ZLS (virtual URI), then falls back to `zig fmt --stdin`.
+ * Formats multiple prepared Zig text segments at once (which may still contain @html(...) placeholders).
+ * Concatenates all segments with "test " prefix and newlines, formats them all at once,
+ * then splits by "test " keyword to extract individual formatted expressions.
  */
-async function formatZigExprs(
-  preparedZigText: string,
+async function formatZigExprsBatch(
+  preparedZigTexts: string[],
   token: CancellationToken,
-): Promise<string> {
-  // Add semicolons after complete expressions and @html(n) patterns to make valid Zig
-  const textWithSemicolons = addSemicolonsToCompleteExpressions(
-    addSemicolonsToHtmlPlaceholders(preparedZigText)
+): Promise<string[]> {
+  if (preparedZigTexts.length === 0) {
+    return [];
+  }
+
+  // Add semicolons after complete expressions and @html(n) patterns to make valid Zig for each text
+  const textsWithSemicolons = preparedZigTexts.map(text =>
+    addSemicolonsToCompleteExpressions(
+      addSemicolonsToHtmlPlaceholders(text)
+    )
   );
 
-  // Prefix to make the prepared segment a valid Zig snippet for the formatter.
-  // Keep this in sync with the slice length used later when removing the prefix.
-  const validZigDoc = "test " + textWithSemicolons;
+  // Concatenate all texts with "test " prefix and newlines
+  const validZigDoc = textsWithSemicolons
+    .map(text => "test " + text)
+    .join("\n");
 
-  // Fallback to CLI
+  // Format all at once
   const formattedEdits = await runZigFmt(validZigDoc, token);
-  const withoutPrefix = formattedEdits.slice("test ".length);
-  // Remove semicolons we added before formatting
-  return removeSemicolonsFromCompleteExpressions(
-    removeSemicolonsFromHtmlPlaceholders(withoutPrefix)
-  );
+
+  // Split by "test " keyword to extract individual formatted expressions
+  // The formatted text will have "test " at the start and after each newline
+  let formattedText = formattedEdits.trim();
+  
+  // Remove leading "test " if present
+  if (formattedText.startsWith("test ")) {
+    formattedText = formattedText.slice("test ".length);
+  }
+  
+  // Split by "\ntest " to get individual expressions
+  const parts = formattedText.split(/\ntest /);
+  
+  // Process each part
+  const formattedExpressions: string[] = [];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.length === 0) {
+      continue;
+    }
+    
+    // Remove semicolons we added before formatting
+    const cleaned = removeSemicolonsFromCompleteExpressions(
+      removeSemicolonsFromHtmlPlaceholders(trimmed)
+    );
+    
+    formattedExpressions.push(cleaned);
+  }
+
+  return formattedExpressions;
 }
 
 /**
@@ -1303,12 +1360,12 @@ export async function runZigFmt(
   text: string,
   token: CancellationToken,
 ): Promise<string> {
+  const timestamp = Date.now();
+
   const abortController = new AbortController();
   token.onCancellationRequested(() => {
     abortController.abort();
   });
-
-  const timestamp = Date.now();
 
   try {
     const promise = execFile("zig", ["fmt", "--stdin"], {
@@ -1329,8 +1386,7 @@ export async function runZigFmt(
     console.error("runZigFmt error:", err);
     return text;
   } finally {
-    const duration = Date.now() - timestamp;
-    console.debug(`runZigFmt took ${duration}ms`);
+    fmtStats.increment("zig", Date.now() - timestamp);
   }
 }
 
@@ -1375,3 +1431,52 @@ export interface CancellationToken {
    */
   onCancellationRequested: (v: () => void) => void;
 }
+
+
+export const fmtStats = {
+  zigCount: 0,
+  htmlCount: 0,
+  count: 0,
+
+  zigTime: null,
+  htmlTime: null,
+  time: null,
+  
+  clear() {
+    this.zigFmt = 0;
+    this.htmlFmt = 0;
+    this.fmt = 0;
+  },
+  increment(type: "zig" | "html" | 'fmt', duration?: number) {
+    if (type === 'fmt') this.count++;
+    if (type === "zig") this.zigCount++;
+    if (type === "html") this.htmlCount++;
+    if (duration) {
+      if (type === 'zig') this.zigTime = (this.zigTime ?? 0) + duration;
+      if (type === 'html') this.htmlTime = (this.htmlTime ?? 0) + duration;
+      if (type === 'fmt') this.time = (this.time ?? 0) + duration;
+    }
+  },
+  reset() {
+    this.zigCount = 0;
+    this.htmlCount = 0;
+    this.count = 0;
+    this.zigTime = null;
+    this.htmlTime = null;
+    this.fmtTime = null;
+  },
+  getStats() {
+    return {
+      count: {
+        zig: this.zigCount,
+        html: this.htmlCount,
+        total: this.count,
+      },
+      time: {
+        zig: this.zigTime,
+        html: this.htmlTime,
+        total: this.time,
+      },
+    };
+  },
+};
