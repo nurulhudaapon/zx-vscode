@@ -27,23 +27,32 @@ test("prefareFmtDoc", () => {
 });
 
 describe("addSemicolonsToCompleteExpressions", () => {
-  const evalar = (input: string) => addSemicolonsToCompleteExpressions(addSemicolonsToHtmlPlaceholders(input));
+  const evalar = (input: string) =>
+    addSemicolonsToCompleteExpressions(addSemicolonsToHtmlPlaceholders(input));
   test("semi after for expression", () => {
-    expect(evalar(`test {for (posts) |post| {@html(0)}}`))
-      .toEqual(`test {for (posts) |post| {@html(0);}}`);
-
+    expect(evalar(`test {for (posts) |post| {@html(0)}}`)).toEqual(
+      `test {for (posts) |post| {@html(0);}}`,
+    );
   });
 
   test("semi after paren", () => {
-    expect(evalar(`test {for (posts) |post| {(@html(0))}}`))
-      .toEqual(`test {for (posts) |post| {(@html(0));}}`);
-
+    expect(evalar(`test {for (posts) |post| {(@html(0))}}`)).toEqual(
+      `test {for (posts) |post| {(@html(0));}}`,
+    );
   });
 
   test("seme after paren whitespace/line breaks", () => {
-    const evalar = (input: string) => addSemicolonsToCompleteExpressions(addSemicolonsToHtmlPlaceholders(input));
-    expect(evalar(`test {for (posts)          |post| {(\n                @html(0)            \n)}}`))
-      .toEqual(`test {for (posts)          |post| {(\n                @html(0)            \n);}}`);
+    const evalar = (input: string) =>
+      addSemicolonsToCompleteExpressions(
+        addSemicolonsToHtmlPlaceholders(input),
+      );
+    expect(
+      evalar(
+        `test {for (posts)          |post| {(\n                @html(0)            \n)}}`,
+      ),
+    ).toEqual(
+      `test {for (posts)          |post| {(\n                @html(0)            \n);}}`,
+    );
   });
 });
 
@@ -51,7 +60,7 @@ describe("extractHtmls", () => {
   test("make sure large mixed content correctly extracted", () => {
     const html = fmtUtil.extractHtmls(outLargeMixedContent);
     expect(html.htmls.length).toEqual(2);
-  })
+  });
 
   test("html inside string should be ignored", () => {
     const doc = `
@@ -76,7 +85,7 @@ const zx = @import("zx");
     `;
     const html = fmtUtil.extractHtmls(doc);
     expect(html.htmls.length).toEqual(1);
-  })
+  });
 });
 
 const documentHtmls = [
@@ -332,17 +341,9 @@ describe("indentNegate", () => {
   });
 
   test("handles tabs instead of spaces", () => {
-    const lines = [
-      "\tfirst line",
-      "\t\tsecond line",
-      "\t\tthird line",
-    ];
+    const lines = ["\tfirst line", "\t\tsecond line", "\t\tthird line"];
     const result = indentNegate(lines, 1, 2, 1, 4, false);
-    expect(result).toEqual([
-      "\tfirst line",
-      "\tsecond line",
-      "\tthird line",
-    ]);
+    expect(result).toEqual(["\tfirst line", "\tsecond line", "\tthird line"]);
   });
 
   test("does not modify lines outside range", () => {

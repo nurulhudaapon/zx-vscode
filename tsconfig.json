@@ -6,9 +6,8 @@
     "outDir": "out",
     "rootDir": "src",
     "skipLibCheck": true,
-    "sourceMap": true,
-    "incremental": true
+    "sourceMap": true
   },
-  "include": ["src", "test/fmt/util.test.ts"],
+  "include": ["src/extension.ts"],
   "exclude": ["node_modules", ".vscode-test", "**/*.test.ts"]
 }

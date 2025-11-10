@@ -106,6 +106,7 @@ The formatting system follows a sophisticated pipeline to handle the mixed Zig/H
 - **VS Code** - We use it for development
 
 1. **Clone and install dependencies:**
+
    ```bash
    git clone https://github.com/nurulhudaapon/zx-vscode.git
    cd zx-vscode
@@ -113,6 +114,7 @@ The formatting system follows a sophisticated pipeline to handle the mixed Zig/H
    ```
 
 2. **Compile TypeScript:**
+
    ```bash
    npm run compile
    # Or watch mode for development:
@@ -127,15 +129,18 @@ The formatting system follows a sophisticated pipeline to handle the mixed Zig/H
 #### Making Changes
 
 **Adding Syntax Highlighting:**
+
 - Edit `syntaxes/zx.tmLanguage.json` or `syntaxes/zx-injection.tmLanguage.json`
 - TextMate grammar syntax: https://macromates.com/manual/en/language_grammars
 
 **Modifying Formatting:**
+
 - Main logic: `src/fmt/fmt.ts`
 - Utilities: `src/fmt/util.ts`
 - Test your changes with the test suite (see below)
 
 **Changing Extension Behavior:**
+
 - Entry point: `src/extension.ts`
 - Add commands in `package.json` under `contributes.commands`
 - Register handlers in `activate()` function
@@ -144,16 +149,19 @@ The formatting system follows a sophisticated pipeline to handle the mixed Zig/H
 
 Have 'bun.js' installed as we use it for testing.
 Run the test suite:
+
 ```bash
 npm test
 ```
 
 Test files are located in `test/`:
+
 - `test/fmt/fmt.test.ts` - Formatting function tests
 - `test/fmt/util.test.ts` - Utility function tests
 - `test/data.test.ts` - Data structure and edge case tests
 
 **Manual Testing:**
+
 1. Launch extension in development mode (`F5`)
 2. Create test `.zx` files with various patterns
 3. Test formatting, syntax highlighting, and LSP features
@@ -178,6 +186,7 @@ Test files are located in `test/`:
 The following LSP features need implementation to provide a better development experience:
 
 **HTML Block Support:**
+
 - [ ] Diagnostics for HTML syntax errors within ZX files
 - [ ] Autocomplete for HTML tags and attributes inside HTML blocks
 - [ ] Hover information for HTML elements (showing tag documentation, attribute descriptions)
@@ -185,6 +194,7 @@ The following LSP features need implementation to provide a better development e
 - [ ] Semantic highlighting for HTML content
 
 **ZX File Analysis via ZLS:**
+
 - [ ] Transform `.zx` files to `.zig` format for ZLS processing
 - [ ] Create virtual document provider that converts ZX → Zig on-the-fly
 - [ ] Map ZLS diagnostics back to original ZX file positions
@@ -193,6 +203,7 @@ The following LSP features need implementation to provide a better development e
 - [ ] Type checking and diagnostics for Zig expressions within HTML blocks
 
 **Virtual Document Provider for ZLS:**
+
 - [ ] Implement `TextDocumentContentProvider` for `zx://` URI scheme
 - [ ] Convert ZX syntax to valid Zig code that ZLS can understand
 - [ ] Preserve source mapping between virtual Zig and original ZX positions
@@ -201,12 +212,14 @@ The following LSP features need implementation to provide a better development e
 - [ ] Cache transformed documents for performance
 
 **Integration Points:**
+
 - [ ] Register virtual document provider in `extension.ts`
 - [ ] Configure ZLS to accept virtual Zig documents
 - [ ] Map LSP responses (diagnostics, hover, completion) back to ZX positions
 - [ ] Handle edge cases (empty files, syntax errors, malformed HTML)
 
 **Testing Requirements:**
+
 - [ ] Test virtual document transformation accuracy
 - [ ] Test position mapping (Zig → ZX)
 - [ ] Test diagnostics propagation

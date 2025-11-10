@@ -109,7 +109,6 @@ export async function formatHtml(
   originalUri: string,
   virtualHtmlDocumentContents: Map<string, string>,
 ): Promise<string> {
-  
   // Read configuration: formatting of embedded Zig expressions (and inner HTML)
   // is opt-in via `zx.format.enableZigExpression`. Default is false (disabled)
   // to avoid triggering known formatting bugs. When false, we preserve embedded
@@ -122,7 +121,7 @@ export async function formatHtml(
   // For each zig segment, we need to format it. Zig segments themselves may contain HTML, so
   // we must run prepareFmtDoc on each segment and format inner html, then format the zig.
   const formattedZigExpressions = new Map<string, string>();
-  
+
   // Collect all prepared documents and their inner formatted HTML maps
   const preparedDocuments: Array<{
     zigKey: string;
@@ -168,12 +167,13 @@ export async function formatHtml(
   }
 
   // Format all zig expressions at once
-  const formattedPreparedZigArray = preparedDocuments.length > 0
-    ? await formatZigExprsBatch(
-        preparedDocuments.map(doc => doc.preparedText),
-        token,
-      )
-    : [];
+  const formattedPreparedZigArray =
+    preparedDocuments.length > 0
+      ? await formatZigExprsBatch(
+          preparedDocuments.map((doc) => doc.preparedText),
+          token,
+        )
+      : [];
 
   // Put back inner formatted HTML into the formatted zig text for each expression
   for (let i = 0; i < preparedDocuments.length; i++) {
@@ -269,7 +269,10 @@ export async function formatHtml(
           // For one-liner if expressions (no blocks), merge closing brace with previous line
           // Check if this is a one-liner if expression by checking if there's only one opening brace
           const firstLineContent = indentedZigLines[0].trim();
-          if (firstLineContent.startsWith("{if") && firstLineContent.match(/\{/g)?.length === 1) {
+          if (
+            firstLineContent.startsWith("{if") &&
+            firstLineContent.match(/\{/g)?.length === 1
+          ) {
             // Merge the closing brace with the previous line
             indentedZigLines[0] = indentedZigLines[0].trimEnd() + "}";
             indentedZigLines.pop();
@@ -302,10 +305,12 @@ export function extractHtmls(documentText: string): PreparedFmtDoc {
   let preparedDocumentText = documentText;
   const result = fmtUtil.extractHtmls(documentText);
 
-
   result.htmls.forEach((html, index) => {
     htmlContents.set(`@html(${index})`, html);
-    preparedDocumentText = preparedDocumentText.replace(html, `@html(${index})`);
+    preparedDocumentText = preparedDocumentText.replace(
+      html,
+      `@html(${index})`,
+    );
   });
 
   return { preparedDocumentText, htmlContents };
@@ -604,10 +609,13 @@ export function cleanupZigExprs(
     const firstLine = zigLines[0];
     const indentMatch = firstLine.match(/^(\s*)/);
     const indent = indentMatch ? indentMatch[1] : "";
-    const content = zigLines.map((line, idx) => {
-      if (idx === 0) return line.trim();
-      return line.trim();
-    }).join(" ").trim();
+    const content = zigLines
+      .map((line, idx) => {
+        if (idx === 0) return line.trim();
+        return line.trim();
+      })
+      .join(" ")
+      .trim();
     zigLines = [indent + content];
   }
 
@@ -628,7 +636,6 @@ export function cleanupZigExprs(
   return zigLines.join("\n").replace(/\n+$/, "");
 }
 
-
 /**
  * Adds semicolons after complete expression statements (if/for/switch/while) to make valid Zig syntax.
  * This handles expressions like: if (condition) (value) else (value)
@@ -636,9 +643,10 @@ export function cleanupZigExprs(
  */
 export function addSemicolonsToCompleteExpressions(text: string): string {
   type ExpressionType = "if" | "for" | "switch" | "while";
-  
+
   const expressionKeywords: ExpressionType[] = ["if", "for", "switch", "while"];
-  const matches: Array<{ start: number; end: number; type: ExpressionType }> = [];
+  const matches: Array<{ start: number; end: number; type: ExpressionType }> =
+    [];
 
   // Find all expression keywords
   for (const keyword of expressionKeywords) {
@@ -647,7 +655,7 @@ export function addSemicolonsToCompleteExpressions(text: string): string {
     while ((match = regex.exec(text)) !== null) {
       const start = match.index;
       const afterKeyword = match.index + match[0].length - 1; // Position of opening '('
-      
+
       // Find the end of the condition parentheses
       const conditionEnd = findBalancedParens(text, afterKeyword);
       if (conditionEnd === -1) continue;
@@ -659,9 +667,9 @@ export function addSemicolonsToCompleteExpressions(text: string): string {
       }
 
       // Check for optional capture variable |variable|
-      if (text[pos] === '|') {
+      if (text[pos] === "|") {
         pos++; // Skip opening |
-        const captureEnd = text.indexOf('|', pos);
+        const captureEnd = text.indexOf("|", pos);
         if (captureEnd !== -1) {
           pos = captureEnd + 1;
           // Skip whitespace after capture variable
@@ -673,7 +681,7 @@ export function addSemicolonsToCompleteExpressions(text: string): string {
 
       // Handle body that may start with { then ( (e.g., {(\n ... \n)})
       let bodyStartPos = pos;
-      if (text[pos] === '{') {
+      if (text[pos] === "{") {
         // Skip opening brace and whitespace
         bodyStartPos = pos + 1;
         while (bodyStartPos < text.length && /\s/.test(text[bodyStartPos])) {
@@ -682,7 +690,7 @@ export function addSemicolonsToCompleteExpressions(text: string): string {
       }
 
       // Find the body which is wrapped in parentheses
-      if (text[bodyStartPos] === '(') {
+      if (text[bodyStartPos] === "(") {
         const bodyEnd = findBalancedParens(text, bodyStartPos);
         if (bodyEnd === -1) continue;
 
@@ -705,7 +713,7 @@ export function addSemicolonsToCompleteExpressions(text: string): string {
             }
 
             // Find else body
-            if (text[elsePos] === '(') {
+            if (text[elsePos] === "(") {
               const elseBodyEnd = findBalancedParens(text, elsePos);
               if (elseBodyEnd !== -1) {
                 end = elseBodyEnd;
@@ -898,7 +906,7 @@ export function addSemicolonsToHtmlPlaceholders(text: string): string {
       let parenCount = 0;
       let foundOpeningParen = false;
       let parenStartPos = -1;
-      
+
       // Look backwards from the @html position to find if we're inside parentheses
       for (let k = index - 1; k >= absoluteOpeningBracePos; k--) {
         const char = result[k];
@@ -914,13 +922,13 @@ export function addSemicolonsToHtmlPlaceholders(text: string): string {
           parenCount--;
         }
       }
-      
+
       // If we're inside parentheses that start after the opening brace, skip adding semicolon
       // The semicolon will be added by addSemicolonsToCompleteExpressions after the closing paren
       if (foundOpeningParen && parenStartPos > absoluteOpeningBracePos) {
         continue;
       }
-      
+
       result =
         result.slice(0, index + htmlMatch.length) +
         ";" +
@@ -930,7 +938,6 @@ export function addSemicolonsToHtmlPlaceholders(text: string): string {
 
   return result;
 }
-
 
 /**
  * Formats multiple prepared Zig text segments at once (which may still contain @html(...) placeholders).
@@ -946,15 +953,13 @@ async function formatZigExprsBatch(
   }
 
   // Add semicolons after complete expressions and @html(n) patterns to make valid Zig for each text
-  const textsWithSemicolons = preparedZigTexts.map(text =>
-    addSemicolonsToCompleteExpressions(
-      addSemicolonsToHtmlPlaceholders(text)
-    )
+  const textsWithSemicolons = preparedZigTexts.map((text) =>
+    addSemicolonsToCompleteExpressions(addSemicolonsToHtmlPlaceholders(text)),
   );
 
   // Concatenate all texts with "test " prefix and newlines
   const validZigDoc = textsWithSemicolons
-    .map(text => "test " + text)
+    .map((text) => "test " + text)
     .join("\n");
 
   // Format all at once
@@ -963,15 +968,15 @@ async function formatZigExprsBatch(
   // Split by "test " keyword to extract individual formatted expressions
   // The formatted text will have "test " at the start and after each newline
   let formattedText = formattedEdits.trim();
-  
+
   // Remove leading "test " if present
   if (formattedText.startsWith("test ")) {
     formattedText = formattedText.slice("test ".length);
   }
-  
+
   // Split by "\ntest " to get individual expressions
   const parts = formattedText.split(/\ntest /);
-  
+
   // Process each part
   const formattedExpressions: string[] = [];
   for (const part of parts) {
@@ -979,12 +984,12 @@ async function formatZigExprsBatch(
     if (trimmed.length === 0) {
       continue;
     }
-    
+
     // Remove semicolons we added before formatting
     const cleaned = removeSemicolonsFromCompleteExpressions(
-      removeSemicolonsFromHtmlPlaceholders(trimmed)
+      removeSemicolonsFromHtmlPlaceholders(trimmed),
     );
-    
+
     formattedExpressions.push(cleaned);
   }
 
@@ -1043,7 +1048,6 @@ export async function runZigFmt(
   }
 }
 
-
 export interface CancellationToken {
   /**
    * Is `true` when the token has been cancelled, `false` otherwise.
@@ -1056,7 +1060,6 @@ export interface CancellationToken {
   onCancellationRequested: (v: () => void) => void;
 }
 
-
 export const fmtStats = {
   zigCount: 0,
   htmlCount: 0,
@@ -1065,20 +1068,20 @@ export const fmtStats = {
   zigTime: null,
   htmlTime: null,
   time: null,
-  
+
   clear() {
     this.zigFmt = 0;
     this.htmlFmt = 0;
     this.fmt = 0;
   },
-  increment(type: "zig" | "html" | 'fmt', duration?: number) {
-    if (type === 'fmt') this.count++;
+  increment(type: "zig" | "html" | "fmt", duration?: number) {
+    if (type === "fmt") this.count++;
     if (type === "zig") this.zigCount++;
     if (type === "html") this.htmlCount++;
     if (duration) {
-      if (type === 'zig') this.zigTime = (this.zigTime ?? 0) + duration;
-      if (type === 'html') this.htmlTime = (this.htmlTime ?? 0) + duration;
-      if (type === 'fmt') this.time = (this.time ?? 0) + duration;
+      if (type === "zig") this.zigTime = (this.zigTime ?? 0) + duration;
+      if (type === "html") this.htmlTime = (this.htmlTime ?? 0) + duration;
+      if (type === "fmt") this.time = (this.time ?? 0) + duration;
     }
   },
   reset() {

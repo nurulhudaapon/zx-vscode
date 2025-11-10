@@ -23,7 +23,6 @@ const in1 = `pub fn Page(allocator: zx.Allocator) zx.Component {
 
 const zx = @import("zx");`;
 
-
 const inIfLiner1 = `pub fn Page(ctx: zx.PageContext) zx.Component {
     const is_admin = true;
 
@@ -426,7 +425,6 @@ const inIfBlock10 = `pub fn Page(ctx: zx.PageContext) zx.Component {
 
 const zx = @import("zx");`;
 
-
 const outIfBlock = `pub fn Page(ctx: zx.PageContext) zx.Component {
     const is_logged_in = false;
 
@@ -445,7 +443,6 @@ const outIfBlock = `pub fn Page(ctx: zx.PageContext) zx.Component {
 
 const zx = @import("zx");
 `;
-
 
 const outSwitchBlock = `pub fn Page(allocator: zx.Allocator) zx.Component {
     return (
@@ -689,8 +686,7 @@ const inForLoopBlock1 = `pub fn Page(allocator: zx.Allocator) zx.Component {
     );
 }
 
-const zx = @import("zx");`
-
+const zx = @import("zx");`;
 
 const inLargeMixexdContent = `pub fn Page(ctx: zx.PageContext) zx.Component {
     return (
@@ -883,7 +879,7 @@ fn ExampleBlock(allocator: zx.Allocator, props: ExampleBlockProps) zx.Component 
 
 const zx = @import("zx");
 const std = @import("std");
-const util = @import("util.zig");`
+const util = @import("util.zig");`;
 
 export const outLargeMixedContent = `pub fn Page(ctx: zx.PageContext) zx.Component {
     return (
@@ -1112,28 +1108,60 @@ const util = @import("util.zig");
 `;
 
 export const fmtCases = [
-    {
-        ins: [inIfBlock1, inIfBlock2, inIfBlock3, inIfBlock4, inIfBlock5, inIfBlock6, inIfBlock7, inIfBlock8, inIfBlock9, inIfBlock10],
-        outIfBlock,
-    },
-    {
-        ins: [inIfLiner1, inIfLiner2, inIfLiner3, inIfLiner4, inIfLiner5, inIfLiner6, inIfLiner7, inIfLiner8, inIfLiner9, inIfLiner10, inIfLiner11, inIfLiner12],
-        outIfLiner,
-    },
-    {
-        ins: [inSwitchBlock1, inSwitchBlock2, inSwitchBlock3, inSwitchBlock4, inSwitchBlock5, inSwitchBlock6, inSwitchBlock7],
-        outSwitchBlock,
-    },
-    {
-        ins: [inLargeMixexdContent],
-        outLargeMixedContent,
-    },
-    {
-        ins: [inForLoopLiner1],
-        outForLoopLiner,
-    },
-    {
-        ins: [inForLoopBlock1],
-        outForLoopBlock,
-    },
+  {
+    ins: [
+      inIfBlock1,
+      inIfBlock2,
+      inIfBlock3,
+      inIfBlock4,
+      inIfBlock5,
+      inIfBlock6,
+      inIfBlock7,
+      inIfBlock8,
+      inIfBlock9,
+      inIfBlock10,
+    ],
+    outIfBlock,
+  },
+  {
+    ins: [
+      inIfLiner1,
+      inIfLiner2,
+      inIfLiner3,
+      inIfLiner4,
+      inIfLiner5,
+      inIfLiner6,
+      inIfLiner7,
+      inIfLiner8,
+      inIfLiner9,
+      inIfLiner10,
+      inIfLiner11,
+      inIfLiner12,
+    ],
+    outIfLiner,
+  },
+  {
+    ins: [
+      inSwitchBlock1,
+      inSwitchBlock2,
+      inSwitchBlock3,
+      inSwitchBlock4,
+      inSwitchBlock5,
+      inSwitchBlock6,
+      inSwitchBlock7,
+    ],
+    outSwitchBlock,
+  },
+  {
+    ins: [inLargeMixexdContent],
+    outLargeMixedContent,
+  },
+  {
+    ins: [inForLoopLiner1],
+    outForLoopLiner,
+  },
+  {
+    ins: [inForLoopBlock1],
+    outForLoopBlock,
+  },
 ];
