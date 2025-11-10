@@ -1,11 +1,17 @@
-import * as vscode from "vscode";
 import * as childProcess from "child_process";
-import { LanguageClient } from "vscode-languageclient/node";
 import {
-  TextDocumentIdentifier,
-  DocumentFormattingRequest,
-} from "vscode-languageclient/node";
-import { getLanguageService, TextDocument } from "vscode-html-languageservice";
+  getLanguageService,
+  HTMLFormatConfiguration,
+  TextDocument,
+} from "vscode-html-languageservice";
+const htmlLanguageService = getLanguageService();
+
+const enableZigExpression = true;
+
+const htmlFormatConfig: HTMLFormatConfiguration = {
+  tabSize: 4,
+  insertSpaces: true,
+};
 
 /* ============================================================================
 [Input Document]
@@ -32,8 +38,6 @@ import { getLanguageService, TextDocument } from "vscode-html-languageservice";
        |
        v
 [Output Document]
-*/
-// ============================================================================
 
 /**
  * Main entry point for formatting ZX code.
@@ -41,11 +45,8 @@ import { getLanguageService, TextDocument } from "vscode-html-languageservice";
  */
 export async function formatZx(
   documentText: string,
-  options: vscode.FormattingOptions,
-  token: vscode.CancellationToken,
-  client: LanguageClient,
+  token: CancellationToken,
   originalUri: string,
-  virtualZigDocumentContents: Map<string, string>,
   virtualHtmlDocumentContents: Map<string, string>,
 ): Promise<string> {
   // Step 1: Extract HTML and get prepared Zig code
@@ -54,28 +55,19 @@ export async function formatZx(
   // Step 2: Format the Zig code
   const formattedZigCode = await formatZig(
     htmlExtractedDoc.preparedDocumentText,
-    options,
     token,
-    client,
-    originalUri,
-    virtualZigDocumentContents,
   );
 
   // Step 3: Format HTML sections
   const formattedHtmlContents = new Map<string, string>();
-  const htmlLanguageService = getLanguageService();
 
   for (const [key, htmlContent] of htmlExtractedDoc.htmlContents.entries()) {
     const formattedHtml = await formatHtml(
       htmlContent,
       key,
-      options,
       token,
-      client,
       originalUri,
-      virtualZigDocumentContents,
       virtualHtmlDocumentContents,
-      htmlLanguageService,
     );
     formattedHtmlContents.set(key, formattedHtml);
   }
@@ -91,69 +83,8 @@ export async function formatZx(
  */
 export async function formatZig(
   preparedZigText: string,
-  options: vscode.FormattingOptions,
-  token: vscode.CancellationToken,
-  client: LanguageClient,
-  originalUri: string,
-  virtualZigDocumentContents: Map<string, string>,
+  token: CancellationToken,
 ): Promise<string> {
-  // Store the prepared Zig content in virtual document
-  virtualZigDocumentContents.set(originalUri, preparedZigText);
-
-  const zigVirtualUri = vscode.Uri.parse(
-    `embedded-content-fmt-zig://zig/${encodeURIComponent(originalUri)}.zig`,
-  );
-
-  const formattingProvider = vscode.workspace
-    .getConfiguration("zig")
-    .get<string>("formattingProvider");
-
-  // Try ZLS if configured; otherwise fall back to `zig fmt` CLI
-  if (formattingProvider === "zls") {
-    try {
-      // First try formatting the virtual document (prepared document)
-      let zigTextEdits = (await client.sendRequest(
-        DocumentFormattingRequest.type,
-        {
-          textDocument: TextDocumentIdentifier.create(zigVirtualUri.toString()),
-          options: {
-            tabSize: options.tabSize,
-            insertSpaces: options.insertSpaces,
-          },
-        },
-        token,
-      )) as vscode.TextEdit[] | null;
-
-      // If ZLS returns null for the virtual URI, try asking it to format the real document URI
-      if (!zigTextEdits) {
-        try {
-          zigTextEdits = (await client.sendRequest(
-            DocumentFormattingRequest.type,
-            {
-              textDocument: TextDocumentIdentifier.create(originalUri),
-              options: {
-                tabSize: options.tabSize,
-                insertSpaces: options.insertSpaces,
-              },
-            },
-            token,
-          )) as vscode.TextEdit[] | null;
-        } catch (err) {
-          console.warn("ZLS formatting on original document failed:", err);
-          zigTextEdits = null;
-        }
-      }
-
-      if (zigTextEdits && zigTextEdits.length > 0) {
-        // Apply the edits to get formatted Zig code
-        return applyTextEdits(preparedZigText, zigTextEdits);
-      }
-    } catch (error) {
-      console.error("ZLS formatting failed:", error);
-    }
-  }
-
-  // Fall back to zig fmt CLI
   return runZigFmt(preparedZigText, token);
 }
 
@@ -163,21 +94,15 @@ export async function formatZig(
 export async function formatHtml(
   htmlContent: string,
   htmlKey: string,
-  options: vscode.FormattingOptions,
-  token: vscode.CancellationToken,
-  client: LanguageClient,
+  token: CancellationToken,
   originalUri: string,
-  virtualZigDocumentContents: Map<string, string>,
   virtualHtmlDocumentContents: Map<string, string>,
-  htmlLanguageService: ReturnType<typeof getLanguageService>,
 ): Promise<string> {
   // Read configuration: formatting of embedded Zig expressions (and inner HTML)
   // is opt-in via `zx.format.enableZigExpression`. Default is false (disabled)
   // to avoid triggering known formatting bugs. When false, we preserve embedded
   // expressions as-is. When true, the formatter will attempt to format them.
-  const enableZigExpression = vscode.workspace
-    .getConfiguration("zx")
-    .get<boolean>("format.enableZigExpression", false);
+
   // First, extract zig expressions inside this HTML block
   const zigExpressions = extractZigExprs(htmlContent);
   // segment.preparedSegmentText contains <zig:N /> placeholders instead of zig expressions
@@ -204,10 +129,7 @@ export async function formatHtml(
       const innerVirtualKey = originalUri + htmlKey + zigKey + innerKey;
       virtualHtmlDocumentContents.set(innerVirtualKey, innerHtml);
 
-      const innerHtmlVirtualUri = vscode.Uri.parse(
-        `embedded-content-fmt-html://html/${encodeURIComponent(innerVirtualKey)}.html`,
-      );
-
+      const innerHtmlVirtualUri = `embedded-content-fmt-html://html/${encodeURIComponent(innerVirtualKey)}.html`;
       const innerVirtualHtmlDoc = TextDocument.create(
         innerHtmlVirtualUri.toString(),
         "html",
@@ -217,21 +139,19 @@ export async function formatHtml(
       const innerHtmlTextEdits = htmlLanguageService.format(
         innerVirtualHtmlDoc,
         undefined,
-        { tabSize: options.tabSize, insertSpaces: options.insertSpaces },
+        htmlFormatConfig,
       );
-      const innerFormatted = applyHtmlTextEdits(innerHtml, innerHtmlTextEdits);
+      const innerFormatted = TextDocument.applyEdits(
+        innerVirtualHtmlDoc,
+        innerHtmlTextEdits,
+      );
       innerFormattedHtml.set(innerKey, innerFormatted);
     }
 
     // Now format the zig prepared text (with @html placeholders) via ZLS or CLI
     const formattedPreparedZig = await formatZigExprs(
       innerPrepared.preparedDocumentText,
-      htmlKey + zigKey,
-      options,
       token,
-      client,
-      originalUri,
-      virtualZigDocumentContents,
     );
 
     // Put back inner formatted HTML into the formatted zig text
@@ -250,9 +170,7 @@ export async function formatHtml(
   const virtualHtmlKey = originalUri + htmlKey;
   virtualHtmlDocumentContents.set(virtualHtmlKey, htmlWithZigPlaceholders);
 
-  const htmlVirtualUri = vscode.Uri.parse(
-    `embedded-content-fmt-html://html/${encodeURIComponent(virtualHtmlKey)}.html`,
-  );
+  const htmlVirtualUri = `embedded-content-fmt-html://html/${encodeURIComponent(virtualHtmlKey)}.html`;
 
   const virtualHtmlDoc = TextDocument.create(
     htmlVirtualUri.toString(),
@@ -261,15 +179,13 @@ export async function formatHtml(
     htmlWithZigPlaceholders,
   );
 
-  const htmlTextEdits = htmlLanguageService.format(virtualHtmlDoc, undefined, {
-    tabSize: options.tabSize,
-    insertSpaces: options.insertSpaces,
-  });
-
-  let formattedHtml = applyHtmlTextEdits(
-    htmlWithZigPlaceholders,
-    htmlTextEdits,
+  const htmlTextEdits = htmlLanguageService.format(
+    virtualHtmlDoc,
+    undefined,
+    htmlFormatConfig,
   );
+
+  let formattedHtml = TextDocument.applyEdits(virtualHtmlDoc, htmlTextEdits);
 
   // There may be remaining raw <zig:N /> placeholders if any; ensure formattedZigSegments are reinserted
   // When replacing, preserve the indentation of the placeholder line
@@ -291,8 +207,8 @@ export async function formatHtml(
       // Transform the formatted Zig expression to remove extra line breaks and adjust indentation
       const transformedZig = cleanupZigExprs(
         formattedZig,
-        options.tabSize,
-        options.insertSpaces,
+        htmlFormatConfig.tabSize,
+        htmlFormatConfig.insertSpaces,
       );
 
       // Apply the indentation to all lines of the transformed Zig expression
@@ -629,7 +545,7 @@ export function patchInFormattedHtml(
             let openingBracePos = -1;
             for (let j = i; j <= keyLineIndex; j++) {
               const currentLine = lines[j];
-              const braceIndex = currentLine.indexOf('{');
+              const braceIndex = currentLine.indexOf("{");
               if (braceIndex !== -1) {
                 openingBraceLine = j;
                 openingBracePos = braceIndex;
@@ -649,9 +565,9 @@ export function patchInFormattedHtml(
               const startPos = j === openingBraceLine ? openingBracePos + 1 : 0;
               for (let k = startPos; k < currentLine.length; k++) {
                 const char = currentLine[k];
-                if (char === '{') {
+                if (char === "{") {
                   braceCount++;
-                } else if (char === '}') {
+                } else if (char === "}") {
                   braceCount--;
                   if (braceCount === 0) {
                     // We've closed the opening brace before reaching the key
@@ -901,7 +817,7 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     const trimmedAfter = afterMatch.trimStart();
 
     // If already has semicolon, skip
-    if (trimmedAfter.startsWith(';')) {
+    if (trimmedAfter.startsWith(";")) {
       continue;
     }
 
@@ -914,8 +830,8 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     const controlFlowMatches: Array<{ keyword: string; index: number }> = [];
 
     // Handle keywords with parentheses: if, for, while
-    for (const keyword of ['if', 'for', 'while']) {
-      const regex = new RegExp(`\\b${keyword}\\s*\\(`, 'g');
+    for (const keyword of ["if", "for", "while"]) {
+      const regex = new RegExp(`\\b${keyword}\\s*\\(`, "g");
       let m;
       while ((m = regex.exec(beforeMatch)) !== null) {
         controlFlowMatches.push({ keyword, index: m.index });
@@ -926,14 +842,14 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     const elseRegex = /\belse\s*{/g;
     let elseMatch;
     while ((elseMatch = elseRegex.exec(beforeMatch)) !== null) {
-      controlFlowMatches.push({ keyword: 'else', index: elseMatch.index });
+      controlFlowMatches.push({ keyword: "else", index: elseMatch.index });
     }
 
     // Check for switch statements (to exclude them)
     const switchRegex = /\bswitch\s*\(/g;
     let switchMatch;
     while ((switchMatch = switchRegex.exec(beforeMatch)) !== null) {
-      controlFlowMatches.push({ keyword: 'switch', index: switchMatch.index });
+      controlFlowMatches.push({ keyword: "switch", index: switchMatch.index });
     }
 
     // Find the closest control flow keyword
@@ -946,7 +862,7 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     const closestControlFlow = controlFlowMatches[0];
 
     // If the closest control flow is a switch, skip adding semicolon
-    if (closestControlFlow.keyword === 'switch') {
+    if (closestControlFlow.keyword === "switch") {
       continue;
     }
 
@@ -962,7 +878,7 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     // Find the opening brace after the control flow keyword
     for (let j = 0; j < afterControlFlow.length; j++) {
       const char = afterControlFlow[j];
-      if (char === '{') {
+      if (char === "{") {
         openingBracePos = j;
         foundOpeningBrace = true;
         braceCount = 1;
@@ -977,9 +893,9 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
     // Count braces from the opening brace to our position
     for (let k = openingBracePos + 1; k < afterControlFlow.length; k++) {
       const char = afterControlFlow[k];
-      if (char === '{') {
+      if (char === "{") {
         braceCount++;
-      } else if (char === '}') {
+      } else if (char === "}") {
         braceCount--;
         if (braceCount === 0) {
           // We've closed the opening brace before reaching our position
@@ -990,7 +906,10 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
 
     // If we're still inside the opening brace (braceCount > 0), add semicolon
     if (braceCount > 0) {
-      result = result.slice(0, index + htmlMatch.length) + ';' + result.slice(index + htmlMatch.length);
+      result =
+        result.slice(0, index + htmlMatch.length) +
+        ";" +
+        result.slice(index + htmlMatch.length);
     }
   }
 
@@ -1003,7 +922,7 @@ function addSemicolonsToHtmlPlaceholders(text: string): string {
  */
 function removeSemicolonsFromHtmlPlaceholders(text: string): string {
   // Remove semicolons that immediately follow @html(n) or (@html(n))
-  return text.replace(/(@html\(\d+\)|\(@html\(\d+\)\));/g, '$1');
+  return text.replace(/(@html\(\d+\)|\(@html\(\d+\)\));/g, "$1");
 }
 
 /**
@@ -1012,64 +931,14 @@ function removeSemicolonsFromHtmlPlaceholders(text: string): string {
  */
 async function formatZigExprs(
   preparedZigText: string,
-  segmentId: string,
-  options: vscode.FormattingOptions,
-  token: vscode.CancellationToken,
-  client: LanguageClient,
-  originalUri: string,
-  virtualZigDocumentContents: Map<string, string>,
+  token: CancellationToken,
 ): Promise<string> {
-  // store in virtual map so virtual content provider can return it
-  const virtualKey = originalUri + segmentId;
-
   // Add semicolons after @html(n) patterns inside control flow statements to make valid Zig
   const textWithSemicolons = addSemicolonsToHtmlPlaceholders(preparedZigText);
 
   // Prefix to make the prepared segment a valid Zig snippet for the formatter.
   // Keep this in sync with the slice length used later when removing the prefix.
   const validZigDoc = "test " + textWithSemicolons;
-
-  virtualZigDocumentContents.set(virtualKey, validZigDoc);
-  const virtUri = vscode.Uri.parse(
-    `embedded-content-fmt-zig://zig/${encodeURIComponent(virtualKey)}.zig`,
-  );
-
-  try {
-    let edits = (await client.sendRequest(DocumentFormattingRequest.type, {
-      textDocument: TextDocumentIdentifier.create(virtUri.toString()),
-      options: {
-        tabSize: options.tabSize,
-        insertSpaces: options.insertSpaces,
-      },
-    })) as vscode.TextEdit[] | null;
-
-    if (!edits) {
-      // Try asking zls to format the real document as a last attempt (some servers ignore non-file schemes)
-      try {
-        edits = (await client.sendRequest(DocumentFormattingRequest.type, {
-          textDocument: TextDocumentIdentifier.create(originalUri),
-          options: {
-            tabSize: options.tabSize,
-            insertSpaces: options.insertSpaces,
-          },
-        })) as vscode.TextEdit[] | null;
-      } catch (e) {
-        edits = null;
-      }
-    }
-
-    if (edits && edits.length > 0) {
-      const formatted = applyTextEdits(validZigDoc, edits);
-      const withoutPrefix = formatted.slice("test ".length);
-      // Remove semicolons we added before formatting
-      return removeSemicolonsFromHtmlPlaceholders(withoutPrefix);
-    }
-  } catch (err) {
-    console.warn(
-      "ZLS per-segment formatting failed, falling back to zig fmt --stdin",
-      err,
-    );
-  }
 
   // Fallback to CLI
   const formattedEdits = await runZigFmt(validZigDoc, token);
@@ -1083,7 +952,7 @@ async function formatZigExprs(
  */
 export async function runZigFmt(
   text: string,
-  token: vscode.CancellationToken,
+  token: CancellationToken,
 ): Promise<string> {
   return new Promise<string>((resolve) => {
     try {
@@ -1164,101 +1033,14 @@ function indentNegate(
   });
 }
 
-/**
- * Applies text edits to a string, handling both single-line and multi-line edits.
- * Edits are sorted in reverse order to apply from end to start.
- */
-export function applyTextEdits(text: string, edits: vscode.TextEdit[]): string {
-  const lines = text.split("\n");
+export interface CancellationToken {
+  /**
+   * Is `true` when the token has been cancelled, `false` otherwise.
+   */
+  isCancellationRequested: boolean;
 
-  // Sort edits in reverse order to apply from end to start
-  const sortedEdits = [...edits].sort((a, b) => {
-    const lineDiff = b.range.start.line - a.range.start.line;
-    if (lineDiff !== 0) return lineDiff;
-    return b.range.start.character - a.range.start.character;
-  });
-
-  for (const edit of sortedEdits) {
-    const startLine = edit.range.start.line;
-    const startChar = edit.range.start.character;
-    const endLine = edit.range.end.line;
-    const endChar = edit.range.end.character;
-
-    if (startLine === endLine) {
-      // Single line edit
-      const line = lines[startLine];
-      lines[startLine] =
-        line.slice(0, startChar) + edit.newText + line.slice(endChar);
-    } else {
-      // Multi-line edit
-      const firstLine = lines[startLine].slice(0, startChar);
-      const lastLine = lines[endLine].slice(endChar);
-      const newLines = edit.newText.split("\n");
-
-      // Replace the affected lines
-      lines.splice(startLine, endLine - startLine + 1, firstLine + newLines[0]);
-
-      // Insert remaining new lines
-      for (let i = 1; i < newLines.length; i++) {
-        lines.splice(startLine + i, 0, newLines[i]);
-      }
-
-      // Append the last line content
-      if (newLines.length > 0) {
-        lines[startLine + newLines.length - 1] += lastLine;
-      }
-    }
-  }
-
-  return lines.join("\n");
+  /**
+   * An [event](#Event) which fires upon cancellation.
+   */
+  onCancellationRequested: (v: () => void) => void;
 }
-
-/**
- * Applies HTML text edits to a string, handling both single-line and multi-line edits.
- * Similar to applyTextEdits but works with HTML-specific edit format.
- */
-export function applyHtmlTextEdits(
-  text: string,
-  edits: Array<{ range: any; newText: string }>,
-): string {
-  if (!edits || edits.length === 0) return text;
-
-  const lines = text.split("\n");
-
-  // Sort edits in reverse order
-  const sortedEdits = [...edits].sort((a, b) => {
-    const lineDiff = b.range.start.line - a.range.start.line;
-    if (lineDiff !== 0) return lineDiff;
-    return b.range.start.character - a.range.start.character;
-  });
-
-  for (const edit of sortedEdits) {
-    const startLine = edit.range.start.line;
-    const startChar = edit.range.start.character;
-    const endLine = edit.range.end.line;
-    const endChar = edit.range.end.character;
-
-    if (startLine === endLine) {
-      const line = lines[startLine];
-      lines[startLine] =
-        line.slice(0, startChar) + edit.newText + line.slice(endChar);
-    } else {
-      const firstLine = lines[startLine].slice(0, startChar);
-      const lastLine = lines[endLine].slice(endChar);
-      const newLines = edit.newText.split("\n");
-
-      lines.splice(startLine, endLine - startLine + 1, firstLine + newLines[0]);
-
-      for (let i = 1; i < newLines.length; i++) {
-        lines.splice(startLine + i, 0, newLines[i]);
-      }
-
-      if (newLines.length > 0) {
-        lines[startLine + newLines.length - 1] += lastLine;
-      }
-    }
-  }
-
-  return lines.join("\n");
-}
-

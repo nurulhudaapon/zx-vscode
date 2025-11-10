@@ -38,15 +38,23 @@ export function activate(context: ExtensionContext) {
     outputChannel,
     middleware: {
       async provideDocumentFormattingEdits(document, options, token, next) {
+        const enableZigExpression = vscode.workspace
+          .getConfiguration("zx")
+          .get<boolean>("format.enableZigExpression", false);
+
         const result = provideFormattingEdits(document, options, token);
         return result;
       },
       handleDiagnostics(uri, diagnostics, next) {
         const filteredDiagnostics = diagnostics.map((diag) => {
           // Filter out diagnostics with code "ZigE0424" (unused variable)
-          if (diag.severity === vscode.DiagnosticSeverity.Error && diag.message === "expected expression, found '<'") {
+          if (
+            diag.severity === vscode.DiagnosticSeverity.Error &&
+            diag.message === "expected expression, found '<'"
+          ) {
             diag.severity = vscode.DiagnosticSeverity.Hint;
-            diag.message = "ZX syntax: minimal LSP support will be available for now";
+            diag.message =
+              "ZX syntax: minimal LSP support will be available for now";
           }
           return diag;
         });
@@ -85,7 +93,6 @@ export function activate(context: ExtensionContext) {
         const decodedUri = decodeURIComponent(originalUri);
         return virtualHtmlDocumentContents.get(decodedUri);
       },
-
     }),
   );
 
@@ -101,11 +108,8 @@ export function activate(context: ExtensionContext) {
     // Use the high-level formatZx function to format the entire document
     const result = await formatZx(
       documentText,
-      options,
       token,
-      client,
       originalUri,
-      virtualZigDocumentContents,
       virtualHtmlDocumentContents,
     );
 
@@ -129,10 +133,7 @@ export function activate(context: ExtensionContext) {
       "zx.toggleZigExpressionFormatting",
       async () => {
         const config = workspace.getConfiguration("zx");
-        const current = config.get<boolean>(
-          "format.enableZigExpression",
-          true,
-        );
+        const current = config.get<boolean>("format.enableZigExpression", true);
         const newValue = !current;
         await config.update(
           "format.enableZigExpression",
@@ -140,7 +141,8 @@ export function activate(context: ExtensionContext) {
           vscode.ConfigurationTarget.Global,
         );
         vscode.window.showInformationMessage(
-          `ZX: embedded Zig expression formatting is now ${newValue ? "enabled" : "disabled"
+          `ZX: embedded Zig expression formatting is now ${
+            newValue ? "enabled" : "disabled"
           }`,
         );
       },

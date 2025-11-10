@@ -81,7 +81,9 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -b",
-    "watch": "tsc -b -w"
+    "watch": "tsc -b -w",
+    "fmt": "bunx prettier . --write",
+    "test": "bun test"
   },
   "dependencies": {
     "vscode-html-languageservice": "^5.6.0",

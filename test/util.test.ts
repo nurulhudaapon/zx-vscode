@@ -3,8 +3,7 @@ import {
   extractHtmls,
   cleanupZigExprs,
   extractZigExprs as prepareFmtSegment,
-} from "./fmt";
-
+} from "../src/fmt";
 
 test("prefareFmtDoc", () => {
   const testableHtmls = documentHtmls.slice(0, 2);
@@ -97,10 +96,7 @@ test("prepareFmtSegment", () => {
     console.log(
       `prepareFmtSegment for index=${index} htmlExprCount=${documentHtmlsExprCount[index]}`,
     );
-    console.log(
-      "zigSegments keys:",
-      Array.from(preparedDoc.exprss.keys()),
-    );
+    console.log("zigSegments keys:", Array.from(preparedDoc.exprss.keys()));
     expect(preparedDoc.exprss.size).toEqual(documentHtmlsExprCount[index]);
 
     preparedDoc.exprss.forEach((zigSegment, key) => {
@@ -119,19 +115,28 @@ test("prepareFmtSegment", () => {
 
 test("prepareFmtSegment supports whitespace after brace", () => {
   const variants = [
-    `{ for (items) |item| ( <a>{item}</a> ) }`,
-    `{
+    {
+      text: `{ for (items) |item| ( <a>{item}</a> ) }`,
+      contains: "for (items)",
+    },
+    {
+      text: `{
 for (items) |item| ( <a>{item}</a> ) }`,
-    `{   if (cond) ( <span>Ok</span> ) }`,
-    `{
+      contains: "for (items)",
+    },
+    { text: `{   if (cond) ( <span>Ok</span> ) }`, contains: "if (cond)" },
+    {
+      text: `{
    switch (cond) ( case true: <b>Yes</b> case false: <b>No</b> ) }`,
+      contains: "switch (cond)",
+    },
   ];
 
   variants.forEach((variant, i) => {
-    const prepared = prepareFmtSegment(variant);
+    const prepared = prepareFmtSegment(variant.text);
     expect(prepared.exprss.size).toBe(1);
     const [key, value] = Array.from(prepared.exprss.entries())[0];
-    expect(value).toContain("for (items)");
+    expect(value).toContain(variant.contains);
     // Ensure replacement occurred
     expect(prepared.preparedSegmentText).toContain(key);
   });
@@ -175,7 +180,7 @@ test("transformZigExpression merges consecutive closing braces", () => {
   // Additional checks for formatting
   const lines = output.split("\n");
   // Ensure no line contains only a single closing brace
-  lines.forEach(line => {
+  lines.forEach((line) => {
     expect(line.trim()).not.toBe("}");
   });
   // Optionally, check the total line count matches expected output

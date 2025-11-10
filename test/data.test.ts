@@ -1,0 +1,57 @@
+const in1 = `pub fn Page(allocator: zx.Allocator) zx.Component {
+    const is_admin = true;
+    const is_logged_in = false;
+
+    return (
+        <main @allocator={allocator}>
+            <section>
+                {if (is_admin) (<p>Admin</p>) else (<p>User</p>)}
+            </section>
+            <section>
+                {if (is_admin) ("Powerful") else ("Powerless")}
+            </section>
+            <section>
+                {if (is_logged_in) {
+                    (<p>Welcome, User!</p>)
+                } else {
+                    (<p>Please log in to continue.</p>)
+                }}
+            </section>
+        </main>
+    );
+}
+
+const zx = @import("zx");`;
+
+const out1 = `pub fn Page(allocator: zx.Allocator) zx.Component {
+    const is_admin = true;
+    const is_logged_in = false;
+
+    return (
+        <main @allocator={allocator}>
+            <section>
+                {if (is_admin) (<p>Admin</p>) else (<p>User</p>)}
+            </section>
+            <section>
+                {if (is_admin) ("Powerful") else ("Powerless")}
+            </section>
+            <section>
+                {if (is_logged_in) {
+                    (<p>Welcome, User!</p>)
+                } else {
+                    (<p>Please log in to continue.</p>)
+                }}
+            </section>
+        </main>
+    );
+}
+
+const zx = @import("zx");
+`;
+
+export const fmtCases = [
+  {
+    in: in1,
+    out: out1,
+  },
+];
