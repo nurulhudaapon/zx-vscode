@@ -31,19 +31,19 @@ describe("fmt", () => {
 
 
 async function log(input: string, output: string) {
-    const inputFile = Bun.file("test/logs/input.zig");
-    const outputFile = Bun.file("test/logs/output.zig");
+    const inputFile = Bun.file("test/logs/input.zx");
+    const outputFile = Bun.file("test/logs/output.zx");
     await inputFile.write(input);
     await outputFile.write(output);
 
-    const logFile = Bun.file("test/logs/fmt.log");
+    const logFile = Bun.file("test/logs/fmt.zx");
     const existing = await logFile.exists() ? await logFile.text() : "";
     const newLog = `${existing}${input}
------------------------------->>
+//--->>
 ${output}
----------------------------------------------------------
+//-------------------------------------------------------------
 `;
-    await Bun.write("test/logs/fmt.log", newLog);
+    await Bun.write("test/logs/fmt.zx", newLog);
 }
 
 class CancellationTokenSource {

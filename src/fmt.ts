@@ -242,6 +242,15 @@ export async function formatHtml(
           indentedZigLines[indentedZigLines.length - 2] =
             placeholderIndent + merged.trim();
           indentedZigLines.pop();
+        } else if (lastLine.trim() === "}" && indentedZigLines.length === 2) {
+          // For one-liner if expressions (no blocks), merge closing brace with previous line
+          // Check if this is a one-liner if expression by checking if there's only one opening brace
+          const firstLineContent = indentedZigLines[0].trim();
+          if (firstLineContent.startsWith("{if") && firstLineContent.match(/\{/g)?.length === 1) {
+            // Merge the closing brace with the previous line
+            indentedZigLines[0] = indentedZigLines[0].trimEnd() + "}";
+            indentedZigLines.pop();
+          }
         }
       }
 
@@ -746,6 +755,33 @@ export function cleanupZigExprs(
 ): string {
   let zigLines = formattedZig.split("\n");
 
+  // Check if this is a one-liner if expression (no blocks, just parentheses)
+  // A one-liner if expression would be: {if (condition) (value) else (value)}
+  // We detect this by checking if there are no opening braces after the if keyword
+  // (except the outer opening brace)
+  const isOneLinerIf = (() => {
+    const fullText = zigLines.join("\n");
+    const trimmed = fullText.trim();
+    if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) {
+      return false;
+    }
+    // Check if it's an if expression
+    const ifMatch = trimmed.match(/^\{if\s*\(/);
+    if (!ifMatch) {
+      return false;
+    }
+    // Check if there are no block braces (only the outer ones)
+    // Count opening braces - should be exactly 1 (the outer one)
+    const openBraces = (trimmed.match(/\{/g) || []).length;
+    const closeBraces = (trimmed.match(/\}/g) || []).length;
+    // For a one-liner, we should have exactly 1 opening and 1 closing brace
+    // (the outer ones), and no block braces inside
+    if (openBraces === 1 && closeBraces === 1) {
+      return true;
+    }
+    return false;
+  })();
+
   // Remove line break after opening curly: merge { with next line if first line is just {
   if (zigLines.length > 1 && zigLines[0].trim() === "{") {
     const secondLine = zigLines[1];
@@ -775,6 +811,19 @@ export function cleanupZigExprs(
       zigLines[lastIndex - 1] = prevLine.trimEnd() + "}";
     }
     zigLines.pop();
+  }
+
+  // For one-liner if expressions, ensure everything stays on one line
+  if (isOneLinerIf && zigLines.length > 1) {
+    // Merge all lines into one, preserving the first line's indentation
+    const firstLine = zigLines[0];
+    const indentMatch = firstLine.match(/^(\s*)/);
+    const indent = indentMatch ? indentMatch[1] : "";
+    const content = zigLines.map((line, idx) => {
+      if (idx === 0) return line.trim();
+      return line.trim();
+    }).join(" ").trim();
+    zigLines = [indent + content];
   }
 
   // Apply indentNegate to remove one level of indentation from lines 1 to lineCount - 1
