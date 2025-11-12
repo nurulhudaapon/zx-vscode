@@ -3,7 +3,6 @@ pub fn Page(allocator: zx.Allocator) zx.Component {
     return (
         <main @allocator={allocator}>
             (<p>{greeting}{", "}</p>)
-            (<p>{"Line1\nLine2"}</p>)
         </main>
     );
 }
