@@ -9,12 +9,7 @@ pub fn Page(allocator: zx.Allocator) zx.Component {
                     .member => ("Member"),
                 }}
             </section>
-            <section>
-                {switch (user_swtc.user_type) {
-                    .admin => (<p>Powerful</p>),
-                    .member => (<p>Powerless</p>),
-                }}
-            </section>
+
         </main>
     );
 }

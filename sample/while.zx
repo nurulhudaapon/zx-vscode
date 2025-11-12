@@ -1,6 +1,5 @@
 pub fn Page(allocator: zx.Allocator) zx.Component {
 	var i: usize = 0;
-	var j: usize = 3;
 
 	return (
 		<main @allocator={allocator}>
@@ -9,13 +8,6 @@ pub fn Page(allocator: zx.Allocator) zx.Component {
 					const n = i;
 					i += 1;
 					(<p>{n}</p>)
-				}}
-			</section>
-
-			<section>
-				{while (j > 0) {
-					j -= 1;
-					(<p>{j}</p>)
 				}}
 			</section>
 		</main>
