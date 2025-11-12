@@ -1,0 +1,11 @@
+pub fn Page(allocator: zx.Allocator) zx.Component {
+    const greeting = "Hello";
+    return (
+        <main @allocator={allocator}>
+            (<p>{greeting}{", "}</p>)
+            (<p>{"Line1\nLine2"}</p>)
+        </main>
+    );
+}
+
+const zx = @import("zx");

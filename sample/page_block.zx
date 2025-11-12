@@ -1,0 +1,10 @@
+pub fn Page(allocator: zx.Allocator) zx.Component {
+    return (
+        <main @allocator={allocator}>
+            (<header><h1>{"Sample Page"}</h1></header>)
+            (<p>{"This page demonstrates a simple page block sample used in the samples folder."}</p>)
+        </main>
+    );
+}
+
+const zx = @import("zx");

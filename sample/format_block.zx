@@ -1,0 +1,11 @@
+pub fn Page(allocator: zx.Allocator) zx.Component {
+    const count = 42;
+
+    return (
+        <section @allocator={allocator}>
+            <p>Count: {[count:d]}</p>
+        </section>
+    );
+}
+
+const zx = @import("zx");
