@@ -10,6 +10,8 @@ import {
 import { getZLSPath } from "./util";
 
 import { formatZx, preCompileZigFmt } from "./fmt/fmt";
+import registerAutoClose from "./autocomplete/autoClose";
+import registerTagCompletion from "./autocomplete/tagCompletion";
 
 let client: LanguageClient;
 
@@ -46,7 +48,15 @@ export function activate(context: ExtensionContext) {
           .get<boolean>("format.enableZigExpression", false);
 
         const result = provideFormattingEdits(document, options, token);
+        console.log(result);
+
         return result;
+      },
+      async provideHover(uri, position, token, next) {
+        const hover = await next(uri, position, token);
+        console.log(hover);
+
+        return hover;
       },
       handleDiagnostics(uri, diagnostics, next) {
         const filteredDiagnostics = diagnostics.map((diag) => {
@@ -151,6 +161,12 @@ export function activate(context: ExtensionContext) {
       },
     ),
   );
+
+  // Register simple auto-close tag handler (MVP)
+  registerAutoClose(context);
+
+  // Register tag completion provider: suggests tag names after '<'
+  registerTagCompletion(context);
 }
 
 export function deactivate(): Thenable<void> | undefined {
