@@ -41,6 +41,11 @@
           "type": "boolean",
           "default": true,
           "description": "Enable autoformatting of Zig expressions (and HTML inside those expressions) that are embedded inside HTML blocks. Default is true. Use the command 'ZX: Toggle embedded Zig expression formatting' from the Command Palette to toggle this setting."
+        },
+        "zx.autoCloseTags": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically insert closing HTML tags when typing '>' inside HTML fragments in ZX files."
         }
       }
     },
