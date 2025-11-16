@@ -10,8 +10,7 @@ import {
 import { getZLSPath } from "./util";
 
 import { formatZx, preCompileZigFmt } from "./fmt/fmt";
-import registerAutoClose from "./autocomplete/autoClose";
-import registerTagCompletion from "./autocomplete/tagCompletion";
+import { registerHtmlAutoCompletion } from "./autocompletel/htmlautoCompletetion";
 
 let client: LanguageClient;
 
@@ -161,12 +160,8 @@ export function activate(context: ExtensionContext) {
       },
     ),
   );
-
-  // Register simple auto-close tag handler (MVP)
-  registerAutoClose(context);
-
-  // Register tag completion provider: suggests tag names after '<'
-  registerTagCompletion(context);
+  // Register HTML autocomplete + tag-complete for `.zx` files
+  registerHtmlAutoCompletion(context, "zx");
 }
 
 export function deactivate(): Thenable<void> | undefined {
