@@ -10,6 +10,7 @@ import {
 import { getZLSPath } from "./util";
 
 import { formatZx, preCompileZigFmt } from "./fmt/fmt";
+import { registerHtmlAutoCompletion } from "./autocompletel/htmlautoCompletetion";
 
 let client: LanguageClient;
 
@@ -46,7 +47,15 @@ export function activate(context: ExtensionContext) {
           .get<boolean>("format.enableZigExpression", false);
 
         const result = provideFormattingEdits(document, options, token);
+        console.log(result);
+
         return result;
+      },
+      async provideHover(uri, position, token, next) {
+        const hover = await next(uri, position, token);
+        console.log(hover);
+
+        return hover;
       },
       handleDiagnostics(uri, diagnostics, next) {
         const filteredDiagnostics = diagnostics.map((diag) => {
@@ -151,6 +160,8 @@ export function activate(context: ExtensionContext) {
       },
     ),
   );
+  // Register HTML autocomplete + tag-complete for `.zx` files
+  registerHtmlAutoCompletion(context, "zx");
 }
 
 export function deactivate(): Thenable<void> | undefined {
