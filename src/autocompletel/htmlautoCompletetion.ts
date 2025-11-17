@@ -12,7 +12,33 @@ export function registerHtmlAutoCompletion(
 ) {
   let applying = false;
 
+  const isInsideReturn = (doc: vscode.TextDocument, pos: vscode.Position) => {
+    const txt = doc.getText();
+    const offset = doc.offsetAt(pos);
+    const before = txt.slice(0, offset);
+    const retIdx = before.lastIndexOf("return");
+    if (retIdx === -1) return false;
+    const afterRetChar = txt[retIdx + 6] || "";
+    if (/[\w$]/.test(afterRetChar)) return false;
+    const afterReturn = txt.slice(retIdx);
+    const openRel = afterReturn.indexOf("(");
+    if (openRel === -1) return false;
+    const absOpen = retIdx + openRel;
+    if (absOpen > offset) return false;
+    let depth = 0;
+    for (let i = absOpen; i < txt.length; i++) {
+      const ch = txt[i];
+      if (ch === "(") depth++;
+      else if (ch === ")") {
+        depth--;
+        if (depth === 0) return offset <= i;
+      }
+    }
+    return true;
+  };
+
   const complete = async (doc: vscode.TextDocument, pos: vscode.Position) => {
+    if (!isInsideReturn(doc, pos)) return null;
     const html = HTMLTextDocument.create(
       doc.uri.toString(),
       "html",
@@ -63,6 +89,7 @@ export function registerHtmlAutoCompletion(
         .get<boolean>("autoCloseTags", true)
     )
       return [];
+    if (!isInsideReturn(doc, pos)) return [];
     const html = HTMLTextDocument.create(
       doc.uri.toString(),
       "html",
@@ -128,6 +155,7 @@ export function registerHtmlAutoCompletion(
       c.range.start.line,
       c.range.start.character + c.text.length,
     );
+    if (!isInsideReturn(e.document, pos)) return;
     const html = HTMLTextDocument.create(
       e.document.uri.toString(),
       "html",
