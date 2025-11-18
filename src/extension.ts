@@ -11,6 +11,7 @@ import { getZLSPath } from "./util";
 
 import { formatZx, preCompileZigFmt } from "./fmt/fmt";
 import { registerHtmlAutoCompletion } from "./autocompletel/htmlautoCompletetion";
+import { registerHover } from "./hover/hoverProvider";
 
 let client: LanguageClient;
 
@@ -162,6 +163,7 @@ export function activate(context: ExtensionContext) {
   );
   // Register HTML autocomplete + tag-complete for `.zx` files
   registerHtmlAutoCompletion(context, "zx");
+  registerHover(context, "zx");
 }
 
 export function deactivate(): Thenable<void> | undefined {
